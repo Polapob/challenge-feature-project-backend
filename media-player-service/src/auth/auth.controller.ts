@@ -16,7 +16,7 @@ import { QueryErrorException } from './exceptions/queryError.exception';
 import { IAuthCallbackQuery } from './interfaces/query';
 
 interface IAuthController {
-  redirectToSpotifyOAuth: (response: Response) => Promise<void>;
+  generateSpotifyLoginURL: () => Promise<any>;
   refreshAccessToken: (request: Request, response: Response) => Promise<void>;
   getAccessAndRefreshToken: (
     response: Response,
@@ -28,8 +28,11 @@ interface IAuthController {
 export class AuthController implements IAuthController {
   constructor(private readonly spotifyService: SpotifyService) {}
   @Get('/login')
-  async redirectToSpotifyOAuth(@Res() response: Response) {
-    response.redirect(this.spotifyService.createSpotifyOAuthURL());
+  async generateSpotifyLoginURL() {
+    return {
+      loginURL: this.spotifyService.createSpotifyOAuthURL(),
+      error: '',
+    };
   }
   @Get('/callback')
   async getAccessAndRefreshToken(
@@ -56,14 +59,13 @@ export class AuthController implements IAuthController {
       maxAge: ONE_MONTH_IN_SECOND,
     });
 
-    response
-      .status(HttpStatus.ACCEPTED)
-      .send({ refreshToken: refresh_token, accessToken: access_token });
+    response.redirect('http://localhost:3000/feature/media-player');
   }
   @Post('/refresh')
   async refreshAccessToken(@Req() request: Request, @Res() response: Response) {
     const { refresh_token } = request.cookies;
-    console.log('refreshToken =', refresh_token);
+
+    console.log(refresh_token);
 
     if (!refresh_token) {
       throw new InvalidRefreshTokenException();
@@ -72,6 +74,7 @@ export class AuthController implements IAuthController {
     const { access_token } = await this.spotifyService.refreshAccessToken(
       refresh_token,
     );
+
     response.cookie('access_token', access_token, {
       secure: true,
       httpOnly: true,
